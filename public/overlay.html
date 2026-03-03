@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<!--
+  DoubleDeckerCouch — OBS Browser Source Overlay
+  =====================================================================
+  SETUP IN OBS:
+    1. Add a "Browser Source"
+    2. URL:    http://<your-server-ip>:3000/overlay.html?room=XXXX
+    3. Width:  1920   Height: 1080
+    4. Check "Shutdown source when not visible"
+    5. Custom CSS:  body { background-color: rgba(0,0,0,0) !important; }
+
+  TOUCH DESIGNER:
+    - Use a Web Render TOP with the same URL
+    - Set alpha mode to "Premultiplied" for transparency
+
+  STREAMLABS / STREAMELEMENTS:
+    - Add an "Alert Box" or "Custom Widget" pointing to this URL
+  =====================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DDC Overlay</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* CRITICAL: transparent background for OBS */
+    html, body {
+      background: transparent !important;
+      overflow: hidden;
+      width: 1920px;
+      height: 1080px;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    /* ---- Sticker pool ---- */
+    #sticker-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* ---- Individual overlay sticker ---- */
+    .ov-sticker {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      border-radius: 18px;
+      padding: 16px 22px 14px;
+      min-width: 180px;
+      max-width: 260px;
+      text-align: center;
+      box-shadow:
+        0 0 0 3px rgba(255,255,255,0.3),
+        0 12px 40px rgba(0,0,0,0.55),
+        0 4px 12px rgba(0,0,0,0.4);
+      transform-origin: center bottom;
+      pointer-events: none;
+
+      /* Entrance animation */
+      animation: stickerEnter 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.3) forwards;
+    }
+
+    .ov-sticker.exiting {
+      animation: stickerExit 0.5s ease-in forwards;
+    }
+
+    .ov-emoji  { font-size: 3rem; line-height: 1; }
+    .ov-rule   { font-size: 1rem; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.5); line-height: 1.2; }
+    .ov-player { font-size: 0.72rem; color: rgba(255,255,255,0.7); font-weight: 600; }
+    .ov-count  {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 900;
+      border-radius: 999px;
+      padding: 2px 8px;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    @keyframes stickerEnter {
+      0%   { opacity: 0; transform: scale(0.2) rotate(var(--rot-start)) translateY(40px); }
+      55%  { opacity: 1; transform: scale(1.15) rotate(calc(var(--rot) * 0.6)) translateY(-4px); }
+      75%  { transform: scale(0.97) rotate(calc(var(--rot) * 0.9)) translateY(0); }
+      100% { opacity: 1; transform: scale(1) rotate(var(--rot)) translateY(0); }
+    }
+
+    @keyframes stickerExit {
+      0%   { opacity: 1; transform: scale(1) rotate(var(--rot)) translateY(0); }
+      30%  { transform: scale(1.05) rotate(var(--rot)) translateY(-8px); }
+      100% { opacity: 0; transform: scale(0.5) rotate(calc(var(--rot) * 2)) translateY(-60px); }
+    }
+
+    /* ---- Room code badge (shown until first trigger) ---- */
+    #room-badge {
+      position: absolute;
+      bottom: 40px;
+      right: 40px;
+      background: rgba(15, 15, 20, 0.85);
+      border: 2px solid rgba(124, 111, 255, 0.5);
+      border-radius: 16px;
+      padding: 14px 20px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      transition: opacity 0.5s;
+    }
+    #room-badge .badge-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+    #room-badge .badge-code {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.25em;
+      font-family: 'Courier New', monospace;
+      color: #7c6fff;
+      line-height: 1.2;
+    }
+    #room-badge .badge-url {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.4);
+      margin-top: 2px;
+    }
+    #room-badge.hidden-badge { opacity: 0; pointer-events: none; }
+
+    /* ---- Player roster (bottom left) ---- */
+    #roster {
+      position: absolute;
+      bottom: 40px;
+      left: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .roster-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 999px;
+      padding: 4px 14px 4px 4px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.08);
+      animation: rosterIn 0.3s ease;
+    }
+    @keyframes rosterIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .roster-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .roster-name  { font-size: 0.8rem; font-weight: 700; color: #fff; }
+    .roster-rule  { font-size: 0.7rem; color: rgba(255,255,255,0.5); }
+    .roster-count { font-size: 0.9rem; font-weight: 900; margin-left: auto; padding-left: 12px; }
+
+    /* ---- No-room state ---- */
+    #no-room {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: rgba(255,255,255,0.6);
+      font-size: 1rem;
+      text-align: center;
+    }
+    #no-room h2 { color: #fff; }
+  </style>
+</head>
+<body>
+
+  <div id="sticker-layer"></div>
+
+  <!-- Room badge -->
+  <div id="room-badge">
+    <div class="badge-label">Join the game</div>
+    <div class="badge-code" id="badge-code">????</div>
+    <div class="badge-url" id="badge-url">localhost:3000</div>
+  </div>
+
+  <!-- Player roster -->
+  <div id="roster"></div>
+
+  <!-- No room warning -->
+  <div id="no-room" style="display:none">
+    <h2>No room code specified</h2>
+    <p>Add <code>?room=XXXX</code> to the URL</p>
+    <p style="margin-top:4px; font-size:0.85rem">e.g. <code>http://localhost:3000/overlay.html?room=ABCD</code></p>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ============================================================
+    //  Config
+    // ============================================================
+    const params   = new URLSearchParams(location.search);
+    const roomCode = params.get('room')?.toUpperCase().trim();
+    const STICKER_LIFETIME = 4500; // ms each sticker stays on screen
+    const MAX_STICKERS     = 5;    // max simultaneous stickers
+
+    // ============================================================
+    //  State
+    // ============================================================
+    let players = {};  // { id: player }
+
+    // ============================================================
+    //  Bootstrap
+    // ============================================================
+    if (!roomCode) {
+      document.getElementById('no-room').style.display = 'flex';
+      document.getElementById('room-badge').style.display = 'none';
+      document.getElementById('roster').style.display = 'none';
+    } else {
+      document.getElementById('badge-code').textContent = roomCode;
+      document.getElementById('badge-url').textContent  = location.hostname + (location.port ? ':' + location.port : '');
+    }
+
+    // ============================================================
+    //  Socket
+    // ============================================================
+    const socket = io();
+
+    socket.on('connect', () => {
+      if (!roomCode) return;
+      socket.emit('watch-room', { roomCode }, (res) => {
+        if (!res?.success) return;
+        players = {};
+        (res.players || []).forEach(p => { players[p.id] = p; });
+        renderRoster();
+      });
+    });
+
+    socket.on('player-joined', ({ player }) => {
+      players[player.id] = player;
+      renderRoster();
+    });
+
+    socket.on('player-left', ({ playerId }) => {
+      delete players[playerId];
+      renderRoster();
+    });
+
+    socket.on('rule-set', ({ playerId, playerName, color, emoji, ruleName }) => {
+      if (players[playerId]) {
+        players[playerId].emoji    = emoji;
+        players[playerId].ruleName = ruleName;
+        players[playerId].color    = color;
+      }
+      renderRoster();
+    });
+
+    socket.on('rule-triggered', (event) => {
+      if (players[event.playerId]) {
+        players[event.playerId].count = event.count;
+      }
+      spawnSticker(event);
+      renderRoster();
+      // Briefly hide room badge once game is active
+      document.getElementById('room-badge').classList.add('hidden-badge');
+      setTimeout(() => document.getElementById('room-badge').classList.remove('hidden-badge'), 8000);
+    });
+
+    // ============================================================
+    //  Sticker spawning
+    // ============================================================
+    const stickerLayer = document.getElementById('sticker-layer');
+    const COLS = [
+      [80, 280],   // left column
+      [340, 280],  // mid-left
+      [640, 280],  // center
+      [940, 280],  // mid-right
+      [1200, 280]  // right
+    ];
+    let colLastUsed = new Array(COLS.length).fill(0);
+
+    function pickPosition(index) {
+      // Use a column that hasn't been used recently
+      let bestCol = 0;
+      let oldest  = Infinity;
+      COLS.forEach((_, i) => {
+        if (colLastUsed[i] < oldest) { oldest = colLastUsed[i]; bestCol = i; }
+      });
+      colLastUsed[bestCol] = Date.now();
+
+      const [baseX, baseY] = COLS[bestCol];
+      const jitterX = (Math.random() - 0.5) * 80;
+      const jitterY = (Math.random() - 0.5) * 60;
+      return {
+        x: Math.max(20, Math.min(1680, baseX + jitterX)),
+        y: Math.max(20, Math.min(720,  baseY + jitterY))
+      };
+    }
+
+    function spawnSticker(event) {
+      // Cap active stickers
+      const active = stickerLayer.querySelectorAll('.ov-sticker:not(.exiting)');
+      if (active.length >= MAX_STICKERS) {
+        // Exit oldest one immediately
+        exitSticker(active[0]);
+      }
+
+      const { x, y } = pickPosition();
+      const rot = (Math.random() - 0.5) * 16; // -8 to +8 deg
+      const rotStart = rot + (rot >= 0 ? 20 : -20);
+
+      const el = document.createElement('div');
+      el.className = 'ov-sticker';
+      el.style.left       = x + 'px';
+      el.style.top        = y + 'px';
+      el.style.background = event.color;
+      el.style.setProperty('--rot',       `${rot}deg`);
+      el.style.setProperty('--rot-start', `${rotStart}deg`);
+
+      const times = event.count === 1 ? 'time' : 'times';
+      el.innerHTML = `
+        <div class="ov-emoji">${event.emoji}</div>
+        <div class="ov-rule">${escHtml(event.ruleName)}</div>
+        <div class="ov-player">${escHtml(event.playerName)}</div>
+        <div class="ov-count">×${event.count}</div>
+      `;
+
+      stickerLayer.appendChild(el);
+
+      const timer = setTimeout(() => exitSticker(el), STICKER_LIFETIME);
+      el.dataset.timerId = timer;
+    }
+
+    function exitSticker(el) {
+      if (!el || el.classList.contains('exiting')) return;
+      clearTimeout(Number(el.dataset.timerId));
+      el.classList.add('exiting');
+      setTimeout(() => el.remove(), 550);
+    }
+
+    // ============================================================
+    //  Roster
+    // ============================================================
+    function renderRoster() {
+      const roster = document.getElementById('roster');
+      roster.innerHTML = '';
+      Object.values(players)
+        .filter(p => p.ruleName)
+        .sort((a, b) => b.count - a.count)
+        .forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'roster-item';
+          item.style.animation = 'none'; // skip anim on re-render
+
+          const dot = document.createElement('div');
+          dot.className = 'roster-dot';
+          dot.style.background = p.color;
+          dot.textContent = p.emoji;
+
+          item.innerHTML = `
+            <div class="roster-name">${escHtml(p.name)}</div>
+            <div class="roster-rule">${escHtml(p.ruleName)}</div>
+            <div class="roster-count" style="color:${p.color}">${p.count}×</div>
+          `;
+          item.insertBefore(dot, item.firstChild);
+          roster.appendChild(item);
+        });
+    }
+
+    // ============================================================
+    //  Safety
+    // ============================================================
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

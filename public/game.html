@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DoubleDeckerCouch</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ============================================================
+       Layout Shells
+       ============================================================ */
+    .view {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .topbar-logo { font-size: 1rem; font-weight: 900; }
+    .topbar-room {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 10px;
+    }
+
+    /* ============================================================
+       VIEW: Setup
+       ============================================================ */
+    #view-setup .body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      gap: 24px;
+      overflow-y: auto;
+      max-width: 500px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .setup-header h2 { margin-bottom: 6px; }
+
+    /* Emoji picker */
+    .emoji-section label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .emoji-selected-preview {
+      text-align: center;
+      padding: 18px;
+      background: var(--surface2);
+      border-radius: 14px;
+      border: 2px dashed var(--border);
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .emoji-selected-preview.has-emoji {
+      border-style: solid;
+    }
+    .emoji-selected-preview .big-emoji { font-size: 3.5rem; line-height: 1; }
+    .emoji-selected-preview .pick-hint { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+    }
+
+    .emoji-btn {
+      background: var(--surface2);
+      border: 2px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.4rem;
+      padding: 6px 2px;
+      text-align: center;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      line-height: 1;
+    }
+    .emoji-btn:hover    { background: var(--border); }
+    .emoji-btn:active   { transform: scale(0.9); }
+    .emoji-btn.selected { border-color: var(--accent); background: var(--accent-glow); }
+
+    /* Rule name input */
+    .rule-section label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    #rule-input {
+      font-size: 1.05rem;
+    }
+    .char-count {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .lock-btn {
+      font-size: 1.1rem;
+      padding: 18px;
+      border-radius: 14px;
+    }
+
+    /* ============================================================
+       VIEW: Game
+       ============================================================ */
+    #view-game {
+      overflow: hidden;
+    }
+
+    .game-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Rule badge at top */
+    .rule-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .rule-badge-emoji { font-size: 1.8rem; flex-shrink: 0; }
+    .rule-badge-text  { flex: 1; min-width: 0; }
+    .rule-badge-name  { font-weight: 800; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rule-badge-meta  { font-size: 0.75rem; color: var(--muted); }
+    .rule-badge-count {
+      font-size: 1.5rem;
+      font-weight: 900;
+      flex-shrink: 0;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    /* Big drink button */
+    .button-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 12px;
+      position: relative;
+    }
+
+    .drink-btn-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Pulse ring behind the button */
+    .drink-btn-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      animation: pulseRing 2s infinite;
+    }
+
+    #drink-btn {
+      width: min(72vw, 300px);
+      height: min(72vw, 300px);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: var(--font);
+      font-weight: 900;
+      position: relative;
+      z-index: 1;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 12px 40px -8px rgba(0,0,0,0.5);
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #drink-btn:active {
+      transform: scale(0.93);
+      box-shadow: 0 4px 20px -4px rgba(0,0,0,0.5);
+    }
+    #drink-btn .btn-emoji { font-size: 3rem; line-height: 1; }
+    #drink-btn .btn-label { font-size: 1.1rem; color: rgba(255,255,255,0.9); letter-spacing: 0.04em; }
+    #drink-btn .btn-sub   { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+
+    /* Feed panel */
+    .feed-panel {
+      height: 200px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 6px;
+      flex-shrink: 0;
+    }
+    .feed-header h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .feed-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .feed-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 20px;
+    }
+
+    /* Players sidebar (host gets this in topbar area) */
+    .players-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .players-bar::-webkit-scrollbar { height: 2px; }
+
+    /* ============================================================
+       Sticker Overlay (full-screen slap)
+       ============================================================ */
+    #sticker-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      background: rgba(0,0,0,0);
+      transition: background 0.3s;
+    }
+
+    #sticker-overlay.active {
+      background: rgba(0,0,0,0.55);
+      pointer-events: all;
+    }
+
+    #sticker-overlay .sticker {
+      --rot-start: -25deg;
+      --rot-end: -4deg;
+      transform-origin: center center;
+      display: none;
+      max-width: 85vw;
+      width: 280px;
+    }
+
+    #sticker-overlay.active .sticker {
+      display: flex;
+      animation: slapIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    #sticker-overlay.leaving .sticker {
+      animation: slapOut 0.35s ease-in forwards;
+    }
+
+    /* ============================================================
+       Reconnect banner
+       ============================================================ */
+    #reconnect-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px;
+      background: #F7DC6F;
+      color: #111;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      z-index: 2000;
+    }
+  </style>
+</head>
+<body>
+  <!-- Reconnect banner -->
+  <div id="reconnect-banner">Reconnecting...</div>
+
+  <!-- ============================================================
+       VIEW: SETUP (pick emoji + rule name)
+       ============================================================ -->
+  <div class="view" id="view-setup">
+    <div class="topbar">
+      <span class="logo topbar-logo">🛋️ DDC</span>
+      <span class="topbar-room" id="setup-room-label">Room: ----</span>
+    </div>
+
+    <div class="body">
+      <div class="setup-header">
+        <h2 id="setup-greeting">Hey there!</h2>
+        <p>Pick an emoji and write your drinking rule for tonight's movie.</p>
+      </div>
+
+      <!-- Emoji picker -->
+      <div class="emoji-section">
+        <label>Your Emoji</label>
+        <div class="emoji-selected-preview" id="emoji-preview" onclick="focusEmojiGrid()">
+          <div class="big-emoji" id="emoji-preview-icon">👇</div>
+          <div class="pick-hint" id="emoji-preview-hint">Pick one below</div>
+        </div>
+        <div class="emoji-grid" id="emoji-grid"></div>
+      </div>
+
+      <!-- Rule name -->
+      <div class="rule-section">
+        <label for="rule-input">Your Rule</label>
+        <input
+          type="text"
+          id="rule-input"
+          placeholder='e.g. "Someone says literally"'
+          maxlength="40"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+        <div class="char-count"><span id="char-count">0</span>/40</div>
+      </div>
+
+      <div id="setup-error" class="error-msg hidden"></div>
+
+      <button class="btn btn-primary btn-full lock-btn" id="lock-btn" disabled>
+        Lock In Rule
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       VIEW: GAME (big button + feed)
+       ============================================================ -->
+  <div class="view hidden" id="view-game">
+    <div class="topbar">
+      <span class="logo topbar-logo">🛋️ DDC</span>
+      <span class="topbar-room" id="game-room-label">Room: ----</span>
+    </div>
+
+    <div class="game-body">
+      <!-- Current player's rule badge -->
+      <div class="rule-badge" id="rule-badge">
+        <div class="rule-badge-emoji" id="badge-emoji">❓</div>
+        <div class="rule-badge-text">
+          <div class="rule-badge-name" id="badge-rule">Your rule</div>
+          <div class="rule-badge-meta" id="badge-name">Player</div>
+        </div>
+        <div class="rule-badge-count" id="badge-count">0</div>
+      </div>
+
+      <!-- Players in room -->
+      <div class="players-bar" id="players-bar"></div>
+
+      <!-- BIG button area -->
+      <div class="button-area">
+        <div class="drink-btn-wrap" id="btn-wrap">
+          <button id="drink-btn">
+            <span class="btn-emoji" id="btn-emoji">🍺</span>
+            <span class="btn-label">DRINK!</span>
+            <span class="btn-sub" id="btn-rule-sub">Set your rule</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live feed -->
+      <div class="feed-panel">
+        <div class="feed-header">
+          <h3>Live Feed</h3>
+        </div>
+        <div class="feed-list" id="feed-list">
+          <div class="feed-empty">No rules triggered yet — hit the button!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticker overlay (appears on button press) -->
+  <div id="sticker-overlay">
+    <div class="sticker" id="active-sticker">
+      <div class="sticker-emoji" id="sticker-emoji">🍺</div>
+      <div class="sticker-rule" id="sticker-rule">Rule Name</div>
+      <div class="sticker-count" id="sticker-count">x1 time!</div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ============================================================
+    //  Constants
+    // ============================================================
+    const EMOJIS = [
+      '🍺','🍻','🥃','🍷','🍸','🍹','🧋','🥤',
+      '🔥','💥','⚡','🌟','✨','🎉','💣','🚨',
+      '🎬','🎭','🍿','👑','💀','☠️','🤣','😂',
+      '😱','🙄','🥴','😤','🤦','👀','🎯','🐸',
+      '🤮','💩','🫡','🏆','🤌','👆','📣','🎸'
+    ];
+
+    const STICKER_ROTS = [-8, -5, -3, 3, 5, 8, -6, 6, -4, 4];
+
+    // ============================================================
+    //  State
+    // ============================================================
+    let session   = null;   // { roomCode, player, players, feed }
+    let myPlayer  = null;   // our local player object
+    let players   = {};     // { socketId: player }
+    let myCount   = 0;
+    let stickerTimeout = null;
+
+    // ============================================================
+    //  Init — load session from storage
+    // ============================================================
+    (function init() {
+      const raw = sessionStorage.getItem('ddc_session');
+      if (!raw) { window.location.href = 'index.html'; return; }
+
+      session  = JSON.parse(raw);
+      myPlayer = session.player;
+      players  = {};
+      (session.players || []).forEach(p => { players[p.id] = p; });
+
+      document.getElementById('setup-room-label').textContent = `Room: ${session.roomCode}`;
+      document.getElementById('game-room-label').textContent  = `Room: ${session.roomCode}`;
+      document.getElementById('setup-greeting').textContent   = `Hey ${myPlayer.name}!`;
+
+      buildEmojiGrid();
+      showView('setup');
+    })();
+
+    // ============================================================
+    //  Socket
+    // ============================================================
+    const socket = io({ autoConnect: false });
+
+    socket.on('connect', () => {
+      document.getElementById('reconnect-banner').style.display = 'none';
+
+      // Re-join the room using our stored session
+      socket.emit('join-room', {
+        roomCode: session.roomCode,
+        playerName: myPlayer.name
+      }, (res) => {
+        if (!res.success) {
+          // Room expired — go back to lobby
+          sessionStorage.removeItem('ddc_session');
+          window.location.href = 'index.html';
+          return;
+        }
+        // Update our player ID (socket ID changed on reconnect)
+        myPlayer = res.player;
+        players  = {};
+        (res.players || []).forEach(p => { players[p.id] = p; });
+        session.feed = res.feed || [];
+        renderPlayers();
+        renderFeed(session.feed);
+
+        // Restore rule if we had one
+        const ruleInput = document.getElementById('rule-input');
+        if (myPlayer.ruleName) {
+          // Already locked in — go to game view
+          showGameView();
+        }
+      });
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('reconnect-banner').style.display = 'block';
+    });
+
+    socket.on('player-joined', ({ player }) => {
+      players[player.id] = player;
+      renderPlayers();
+    });
+
+    socket.on('player-left', ({ playerId }) => {
+      delete players[playerId];
+      renderPlayers();
+    });
+
+    socket.on('rule-set', ({ playerId, playerName, color, emoji, ruleName }) => {
+      if (players[playerId]) {
+        players[playerId].emoji    = emoji;
+        players[playerId].ruleName = ruleName;
+        players[playerId].color    = color;
+      }
+      renderPlayers();
+    });
+
+    socket.on('rule-triggered', (event) => {
+      // Update count for that player
+      if (players[event.playerId]) {
+        players[event.playerId].count = event.count;
+      }
+
+      // Update my own count display if it was us
+      if (event.playerId === myPlayer.id) {
+        myCount = event.count;
+        document.getElementById('badge-count').textContent = myCount;
+      }
+
+      renderPlayers();
+      prependFeedItem(event);
+    });
+
+    // Connect after we've set up listeners
+    socket.connect();
+
+    // ============================================================
+    //  View switching
+    // ============================================================
+    function showView(name) {
+      document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+      document.getElementById(`view-${name}`).classList.remove('hidden');
+    }
+
+    function showGameView() {
+      const p = myPlayer;
+      document.getElementById('badge-emoji').textContent  = p.emoji  || '❓';
+      document.getElementById('badge-rule').textContent   = p.ruleName || 'No rule set';
+      document.getElementById('badge-name').textContent   = p.name;
+      document.getElementById('badge-count').textContent  = myCount;
+
+      // Color the badge
+      document.getElementById('rule-badge').style.borderLeft = `5px solid ${p.color}`;
+      document.getElementById('badge-count').style.color     = p.color;
+
+      // Style the big button
+      const btn = document.getElementById('drink-btn');
+      btn.style.background = `radial-gradient(circle at 35% 35%, ${lighten(p.color, 30)}, ${p.color}, ${darken(p.color, 20)})`;
+      btn.style.color      = '#fff';
+      document.getElementById('btn-emoji').textContent   = p.emoji  || '🍺';
+      document.getElementById('btn-rule-sub').textContent = p.ruleName || '';
+
+      // Pulse color
+      document.getElementById('btn-wrap').style.setProperty('color', p.color);
+
+      renderPlayers();
+      showView('game');
+    }
+
+    // ============================================================
+    //  Emoji grid
+    // ============================================================
+    let selectedEmoji = null;
+
+    function buildEmojiGrid() {
+      const grid = document.getElementById('emoji-grid');
+      grid.innerHTML = '';
+      EMOJIS.forEach(e => {
+        const btn = document.createElement('button');
+        btn.className   = 'emoji-btn';
+        btn.textContent = e;
+        btn.setAttribute('aria-label', e);
+        btn.addEventListener('click', () => selectEmoji(e, btn));
+        grid.appendChild(btn);
+      });
+    }
+
+    function focusEmojiGrid() {
+      document.getElementById('emoji-grid').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function selectEmoji(emoji, btnEl) {
+      selectedEmoji = emoji;
+      document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+      btnEl.classList.add('selected');
+      document.getElementById('emoji-preview-icon').textContent = emoji;
+      document.getElementById('emoji-preview-hint').textContent = 'Tap to change';
+      document.getElementById('emoji-preview').classList.add('has-emoji');
+      checkLockReady();
+    }
+
+    // ============================================================
+    //  Rule input
+    // ============================================================
+    const ruleInput = document.getElementById('rule-input');
+    ruleInput.addEventListener('input', () => {
+      document.getElementById('char-count').textContent = ruleInput.value.length;
+      checkLockReady();
+    });
+
+    function checkLockReady() {
+      const ok = selectedEmoji && ruleInput.value.trim().length > 0;
+      document.getElementById('lock-btn').disabled = !ok;
+    }
+
+    document.getElementById('lock-btn').addEventListener('click', () => {
+      const ruleName = ruleInput.value.trim();
+      if (!selectedEmoji || !ruleName) return;
+
+      myPlayer.emoji    = selectedEmoji;
+      myPlayer.ruleName = ruleName;
+      myPlayer.color    = myPlayer.color || '#7c6fff';
+
+      socket.emit('set-rule', { emoji: selectedEmoji, ruleName });
+      showGameView();
+    });
+
+    // ============================================================
+    //  Big drink button
+    // ============================================================
+    const drinkBtn = document.getElementById('drink-btn');
+
+    drinkBtn.addEventListener('click', () => {
+      socket.emit('trigger-rule');
+      // Sticker will show when server echoes back the event
+    });
+
+    // Also support hold-to-confirm feel on mobile
+    drinkBtn.addEventListener('touchstart', () => { drinkBtn.style.transform = 'scale(0.93)'; }, { passive: true });
+    drinkBtn.addEventListener('touchend',   () => { drinkBtn.style.transform = ''; });
+
+    // ============================================================
+    //  Sticker animation
+    // ============================================================
+    function showSticker(event) {
+      if ('vibrate' in navigator) navigator.vibrate([40, 20, 40]);
+
+      const overlay = document.getElementById('sticker-overlay');
+      const sticker = document.getElementById('active-sticker');
+
+      document.getElementById('sticker-emoji').textContent = event.emoji;
+      document.getElementById('sticker-rule').textContent  = event.ruleName;
+      const times = event.count === 1 ? 'time' : 'times';
+      document.getElementById('sticker-count').textContent = `x${event.count} ${times}!`;
+
+      sticker.style.background = event.color;
+      const rot = STICKER_ROTS[Math.floor(Math.random() * STICKER_ROTS.length)];
+      sticker.style.setProperty('--rot-start', `${rot < 0 ? rot - 15 : rot + 15}deg`);
+      sticker.style.setProperty('--rot-end', `${rot}deg`);
+
+      overlay.classList.remove('leaving');
+      overlay.classList.add('active');
+      clearTimeout(stickerTimeout);
+
+      // Auto-dismiss after 2.5s, or tap to dismiss
+      stickerTimeout = setTimeout(() => dismissSticker(), 2500);
+      overlay.addEventListener('click', dismissSticker, { once: true });
+    }
+
+    function dismissSticker() {
+      clearTimeout(stickerTimeout);
+      const overlay = document.getElementById('sticker-overlay');
+      overlay.classList.add('leaving');
+      setTimeout(() => { overlay.classList.remove('active', 'leaving'); }, 350);
+    }
+
+    // Only show the sticker on your own phone when YOU trigger
+    socket.on('rule-triggered', (event) => {
+      if (event.playerId === myPlayer.id) {
+        showSticker(event);
+      }
+    });
+
+    // ============================================================
+    //  Players bar
+    // ============================================================
+    function renderPlayers() {
+      const bar = document.getElementById('players-bar');
+      bar.innerHTML = '';
+      Object.values(players).forEach(p => {
+        const pill = document.createElement('div');
+        pill.className = 'player-pill';
+
+        const dot = document.createElement('div');
+        dot.className = 'player-pill-dot';
+        dot.style.background = p.color;
+        dot.textContent = p.emoji || p.name[0].toUpperCase();
+
+        const label = document.createElement('span');
+        label.textContent = p.ruleName ? `${p.name} · ${p.count}` : `${p.name} · setting up…`;
+        label.style.color = p.color;
+
+        pill.appendChild(dot);
+        pill.appendChild(label);
+        bar.appendChild(pill);
+      });
+    }
+
+    // ============================================================
+    //  Feed
+    // ============================================================
+    function renderFeed(feedItems) {
+      const list = document.getElementById('feed-list');
+      list.innerHTML = '';
+      if (!feedItems.length) {
+        list.innerHTML = '<div class="feed-empty">No rules triggered yet — hit the button!</div>';
+        return;
+      }
+      feedItems.forEach(item => appendFeedItem(item, false));
+    }
+
+    function prependFeedItem(event) {
+      const list = document.getElementById('feed-list');
+      // Remove empty state if present
+      const empty = list.querySelector('.feed-empty');
+      if (empty) empty.remove();
+
+      const el = buildFeedItem(event);
+      list.insertBefore(el, list.firstChild);
+
+      // Cap feed at 50 items
+      while (list.children.length > 50) list.lastChild.remove();
+    }
+
+    function appendFeedItem(event, animate = true) {
+      const list = document.getElementById('feed-list');
+      list.appendChild(buildFeedItem(event, animate));
+    }
+
+    function buildFeedItem(event, animate = true) {
+      const el = document.createElement('div');
+      el.className = 'feed-item';
+      el.style.color      = event.color;
+      el.style.borderColor = event.color;
+      if (!animate) el.style.animation = 'none';
+
+      const times = event.count === 1 ? 'time' : 'times';
+      el.innerHTML = `
+        <span class="feed-item-emoji">${event.emoji}</span>
+        <span class="feed-item-info">
+          <div class="feed-item-rule">${escHtml(event.ruleName)}</div>
+          <div class="feed-item-name">${escHtml(event.playerName)}</div>
+        </span>
+        <span class="feed-item-count" style="color:${event.color}">${event.count}×</span>
+      `;
+      return el;
+    }
+
+    // ============================================================
+    //  Color helpers
+    // ============================================================
+    function hexToRgb(hex) {
+      const r = parseInt(hex.slice(1,3), 16);
+      const g = parseInt(hex.slice(3,5), 16);
+      const b = parseInt(hex.slice(5,7), 16);
+      return [r, g, b];
+    }
+    function rgbToHex(r, g, b) {
+      return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2,'0')).join('');
+    }
+    function lighten(hex, amt) {
+      const [r, g, b] = hexToRgb(hex);
+      return rgbToHex(r + amt, g + amt, b + amt);
+    }
+    function darken(hex, amt) {
+      const [r, g, b] = hexToRgb(hex);
+      return rgbToHex(r - amt, g - amt, b - amt);
+    }
+
+    // ============================================================
+    //  Safety
+    // ============================================================
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

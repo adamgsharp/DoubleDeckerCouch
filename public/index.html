@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DoubleDeckerCouch</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+      gap: 0;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .hero-icon {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+      display: block;
+      filter: drop-shadow(0 4px 12px rgba(124,111,255,0.4));
+    }
+
+    .hero h1 { margin-bottom: 8px; }
+    .hero p   { font-size: 0.95rem; max-width: 300px; margin: 0 auto; }
+
+    .form-wrapper {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .form-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* Large code input */
+    .code-input {
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 0.3em;
+      font-size: 1.6rem !important;
+      font-weight: 800;
+      font-family: 'Courier New', monospace !important;
+    }
+
+    .host-tip {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 10px;
+      background: var(--surface2);
+      border-radius: 10px;
+      line-height: 1.5;
+    }
+
+    .host-tip strong { color: var(--text); }
+
+    #error { display: none; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <span class="hero-icon">🛋️</span>
+      <h1><span class="logo">DoubleDeckerCouch</span></h1>
+      <p>Movie night drinking rules — everyone plays on their phone</p>
+    </div>
+
+    <div class="form-wrapper">
+      <div class="form-section">
+        <label for="name-input">Your Name</label>
+        <input
+          type="text"
+          id="name-input"
+          placeholder="e.g. MovieBuff42"
+          maxlength="20"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+      </div>
+
+      <div class="form-section">
+        <label for="code-input">Room Code</label>
+        <input
+          type="text"
+          id="code-input"
+          class="code-input"
+          placeholder="ABCD"
+          maxlength="4"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+      </div>
+
+      <div id="error" class="error-msg"></div>
+
+      <button class="btn btn-primary btn-full" id="join-btn" disabled>
+        Join Room
+      </button>
+
+      <div class="divider">or</div>
+
+      <button class="btn btn-ghost btn-full" id="create-btn" disabled>
+        Create New Room
+      </button>
+
+      <p class="host-tip">
+        <strong>Hosting?</strong> Create a room and share the 4-letter code on screen.
+        Players join from their phones. Add the
+        <strong>overlay URL</strong> as an OBS Browser Source for live stream stickers.
+      </p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const nameInput  = document.getElementById('name-input');
+    const codeInput  = document.getElementById('code-input');
+    const joinBtn    = document.getElementById('join-btn');
+    const createBtn  = document.getElementById('create-btn');
+    const errorDiv   = document.getElementById('error');
+
+    const socket = io();
+
+    // ---- helpers ----
+    function showError(msg) {
+      errorDiv.textContent = msg;
+      errorDiv.style.display = 'block';
+    }
+    function clearError() {
+      errorDiv.style.display = 'none';
+    }
+    function setLoading(isLoading) {
+      joinBtn.disabled   = isLoading || !canJoin();
+      createBtn.disabled = isLoading || !canCreate();
+    }
+
+    function canJoin()   { return nameInput.value.trim().length > 0 && codeInput.value.trim().length === 4; }
+    function canCreate() { return nameInput.value.trim().length > 0; }
+
+    function updateButtons() {
+      joinBtn.disabled   = !canJoin();
+      createBtn.disabled = !canCreate();
+    }
+
+    nameInput.addEventListener('input', () => { clearError(); updateButtons(); });
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      clearError();
+      updateButtons();
+    });
+
+    // Enter key shortcuts
+    codeInput.addEventListener('keydown', e => { if (e.key === 'Enter' && canJoin()) doJoin(); });
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter' && canCreate()) doCreate(); });
+
+    function saveSession(data) {
+      sessionStorage.setItem('ddc_session', JSON.stringify(data));
+    }
+
+    function goToGame() {
+      window.location.href = 'game.html';
+    }
+
+    // ---- Join ----
+    joinBtn.addEventListener('click', doJoin);
+    function doJoin() {
+      if (!canJoin()) return;
+      clearError();
+      setLoading(true);
+      socket.emit('join-room', {
+        roomCode: codeInput.value.trim(),
+        playerName: nameInput.value.trim()
+      }, (res) => {
+        setLoading(false);
+        if (!res.success) { showError(res.error); return; }
+        saveSession(res);
+        goToGame();
+      });
+    }
+
+    // ---- Create ----
+    createBtn.addEventListener('click', doCreate);
+    function doCreate() {
+      if (!canCreate()) return;
+      clearError();
+      setLoading(true);
+      socket.emit('create-room', { playerName: nameInput.value.trim() }, (res) => {
+        setLoading(false);
+        if (!res.success) { showError(res.error); return; }
+        saveSession(res);
+        goToGame();
+      });
+    }
+
+    socket.on('connect_error', () => showError('Connection failed — is the server running?'));
+  </script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+/* ============================================================
+   DoubleDeckerCouch — Shared Base Styles
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --bg: #0f0f13;
+  --surface: #1a1a24;
+  --surface2: #24243a;
+  --border: #2e2e4a;
+  --text: #f0f0f8;
+  --muted: #8888aa;
+  --accent: #7c6fff;
+  --accent-glow: rgba(124, 111, 255, 0.3);
+  --radius: 16px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  touch-action: manipulation;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ---- Typography ---- */
+h1 { font-size: clamp(1.6rem, 5vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.2rem, 4vw, 1.6rem); font-weight: 700; }
+h3 { font-size: 1rem; font-weight: 600; }
+p  { line-height: 1.6; color: var(--muted); }
+
+/* ---- Layout helpers ---- */
+.center  { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hidden  { display: none !important; }
+.full    { width: 100%; }
+
+/* ---- Cards / Surfaces ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+/* ---- Form elements ---- */
+input[type="text"] {
+  width: 100%;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-family: var(--font);
+  padding: 14px 18px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+input[type="text"]::placeholder {
+  color: var(--muted);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px 28px;
+  transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn:active { transform: scale(0.96); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-ghost {
+  background: transparent;
+  border: 2px solid var(--border);
+  color: var(--text);
+}
+
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-full { width: 100%; }
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ---- Divider ---- */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---- Error message ---- */
+.error-msg {
+  color: #FF6B6B;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 10px;
+  background: rgba(255,107,107,0.12);
+  border-radius: 8px;
+  border: 1px solid rgba(255,107,107,0.3);
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ---- Logo mark ---- */
+.logo {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #7c6fff, #ff6fb0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---- Player pill ---- */
+.player-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 12px 4px 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.player-pill-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* ---- Sticker ---- */
+.sticker {
+  border-radius: 20px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+  position: relative;
+  min-width: 220px;
+  max-width: 90vw;
+  text-align: center;
+}
+.sticker::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  border: 3px solid rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+.sticker-emoji  { font-size: 3.5rem; line-height: 1; }
+.sticker-rule   { font-size: 1.1rem; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+.sticker-count  { font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.75); }
+
+/* ---- Feed item ---- */
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border-left: 4px solid currentColor;
+  animation: feedSlideIn 0.3s ease;
+  flex-shrink: 0;
+}
+
+@keyframes feedSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.feed-item-emoji  { font-size: 1.4rem; flex-shrink: 0; }
+.feed-item-info   { flex: 1; min-width: 0; }
+.feed-item-rule   { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-item-name   { font-size: 0.75rem; color: var(--muted); }
+.feed-item-count  { font-weight: 800; font-size: 1.1rem; flex-shrink: 0; }
+
+/* ---- Pulse ring animation ---- */
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.7; }
+  70%  { box-shadow: 0 0 0 20px transparent; opacity: 0; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ---- Sticker slap animation ---- */
+@keyframes slapIn {
+  0%   { transform: scale(0.2) rotate(var(--rot-start)); opacity: 0; }
+  55%  { transform: scale(1.15) rotate(calc(var(--rot-end) * 0.5)); opacity: 1; }
+  75%  { transform: scale(0.97) rotate(calc(var(--rot-end) * 0.9)); }
+  90%  { transform: scale(1.03) rotate(var(--rot-end)); }
+  100% { transform: scale(1) rotate(var(--rot-end)); opacity: 1; }
+}
+
+@keyframes slapOut {
+  0%   { transform: scale(1) rotate(var(--rot-end)); opacity: 1; }
+  100% { transform: scale(0.6) rotate(calc(var(--rot-end) * 2)) translateY(30px); opacity: 0; }
+}
+
+/* ---- Room code display ---- */
+.room-code {
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  font-family: 'Courier New', monospace;
+  background: var(--surface2);
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 12px 28px;
+  text-align: center;
+  color: var(--accent);
+}
