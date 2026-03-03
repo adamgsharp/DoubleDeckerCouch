@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<!--
+  DoubleDeckerCouch — Standalone Demo
+  No server required. Open this file in any browser.
+  Bot players will auto-join and occasionally trigger their rules.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DoubleDeckerCouch — Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0f0f13; --surface: #1a1a24; --surface2: #24243a;
+      --border: #2e2e4a; --text: #f0f0f8; --muted: #8888aa;
+      --accent: #7c6fff; --accent-glow: rgba(124,111,255,0.3);
+      --radius: 16px; --font: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); overflow-x: hidden; touch-action: manipulation; }
+    body { display: flex; flex-direction: column; min-height: 100dvh; }
+
+    .view { display: flex; flex-direction: column; min-height: 100dvh; }
+    .hidden { display: none !important; }
+
+    /* ---- Demo badge ---- */
+    .demo-badge {
+      background: #F7DC6F; color: #111; font-size: 0.75rem; font-weight: 700;
+      text-align: center; padding: 6px; letter-spacing: 0.04em; flex-shrink: 0;
+    }
+
+    /* ---- Topbar ---- */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; background: var(--surface); border-bottom: 1px solid var(--border);
+      gap: 12px; flex-shrink: 0;
+    }
+    .logo { font-size: 1rem; font-weight: 900; background: linear-gradient(135deg,#7c6fff,#ff6fb0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .topbar-room { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; }
+
+    /* ---- JOIN VIEW ---- */
+    #view-join {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 24px 20px; gap: 0;
+    }
+    .hero { text-align: center; margin-bottom: 36px; }
+    .hero-icon { font-size: 3.5rem; margin-bottom: 12px; display: block; filter: drop-shadow(0 4px 12px rgba(124,111,255,0.4)); }
+    .hero h1 { font-size: clamp(1.6rem,5vw,2.2rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .hero p { color: var(--muted); font-size: 0.95rem; }
+
+    .form-wrapper { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px; }
+    label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 8px; }
+    input[type="text"] {
+      width: 100%; background: var(--surface2); border: 2px solid var(--border);
+      border-radius: 12px; color: var(--text); font-size: 1.1rem; font-family: var(--font);
+      padding: 14px 18px; outline: none; transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    .code-input { text-transform: uppercase; text-align: center; letter-spacing: 0.3em; font-size: 1.6rem !important; font-weight: 800; font-family: 'Courier New', monospace !important; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border: none; border-radius: 12px; cursor: pointer; font-family: var(--font);
+      font-size: 1rem; font-weight: 700; padding: 14px 28px;
+      transition: transform 0.1s, opacity 0.2s; user-select: none; width: 100%;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 20px var(--accent-glow); }
+    .btn-ghost { background: transparent; border: 2px solid var(--border); color: var(--text); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+    .divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 0.85rem; margin: 4px 0; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .form-section { display: flex; flex-direction: column; }
+
+    /* ---- SETUP VIEW ---- */
+    #view-setup .body { flex: 1; display: flex; flex-direction: column; padding: 24px 20px; gap: 22px; overflow-y: auto; max-width: 500px; margin: 0 auto; width: 100%; }
+    .setup-header h2 { font-size: clamp(1.2rem,4vw,1.6rem); font-weight: 700; margin-bottom: 6px; }
+    .setup-header p { color: var(--muted); font-size: 0.9rem; }
+
+    .emoji-selected-preview {
+      text-align: center; padding: 18px; background: var(--surface2);
+      border-radius: 14px; border: 2px dashed var(--border); margin-bottom: 10px;
+      transition: border-color 0.2s; cursor: pointer;
+    }
+    .emoji-selected-preview.has-emoji { border-style: solid; border-color: var(--accent); }
+    .emoji-selected-preview .big-emoji { font-size: 3.5rem; line-height: 1; }
+    .emoji-selected-preview .pick-hint { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+    .emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+    .emoji-btn {
+      background: var(--surface2); border: 2px solid transparent; border-radius: 8px;
+      cursor: pointer; font-size: 1.4rem; padding: 6px 2px; text-align: center;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s; line-height: 1;
+    }
+    .emoji-btn:hover { background: var(--border); }
+    .emoji-btn:active { transform: scale(0.9); }
+    .emoji-btn.selected { border-color: var(--accent); background: var(--accent-glow); }
+
+    .char-count { font-size: 0.75rem; color: var(--muted); text-align: right; margin-top: 4px; }
+    .lock-btn { font-size: 1.1rem; padding: 18px; border-radius: 14px; }
+
+    /* ---- GAME VIEW ---- */
+    #view-game { overflow: hidden; }
+    .game-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .rule-badge {
+      display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      border-left: 5px solid; flex-shrink: 0;
+    }
+    .rule-badge-emoji { font-size: 1.8rem; flex-shrink: 0; }
+    .rule-badge-text { flex: 1; min-width: 0; }
+    .rule-badge-name { font-weight: 800; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rule-badge-meta { font-size: 0.75rem; color: var(--muted); }
+    .rule-badge-count { font-size: 1.5rem; font-weight: 900; flex-shrink: 0; min-width: 40px; text-align: right; }
+
+    .players-bar { display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .players-bar::-webkit-scrollbar { height: 2px; }
+
+    .player-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 12px 4px 4px; font-size: 0.85rem; font-weight: 700; background: var(--surface2); border: 1px solid var(--border); white-space: nowrap; }
+    .player-pill-dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
+
+    .button-area {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px; gap: 12px; position: relative;
+    }
+
+    .drink-btn-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+    .drink-btn-wrap::before {
+      content: ''; position: absolute; inset: -10px; border-radius: 50%;
+      animation: pulseRing 2s infinite; box-shadow: 0 0 0 0 currentColor;
+    }
+
+    #drink-btn {
+      width: min(72vw, 300px); height: min(72vw, 300px); border-radius: 50%; border: none;
+      cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; font-family: var(--font); font-weight: 900; position: relative; z-index: 1;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 12px 40px -8px rgba(0,0,0,0.5);
+      user-select: none; -webkit-user-select: none;
+    }
+    #drink-btn:active { transform: scale(0.93); box-shadow: 0 4px 20px -4px rgba(0,0,0,0.5); }
+    #drink-btn .btn-emoji { font-size: 3rem; line-height: 1; }
+    #drink-btn .btn-label { font-size: 1.1rem; color: rgba(255,255,255,0.9); letter-spacing: 0.04em; }
+    #drink-btn .btn-sub   { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+
+    .feed-panel { height: 200px; border-top: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+    .feed-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 6px; flex-shrink: 0; }
+    .feed-header h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .feed-list { flex: 1; overflow-y: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .feed-empty { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px; }
+
+    .feed-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      border-radius: 10px; background: var(--surface2); border-left: 4px solid currentColor;
+      animation: feedSlideIn 0.3s ease; flex-shrink: 0;
+    }
+    .feed-item-emoji { font-size: 1.4rem; flex-shrink: 0; }
+    .feed-item-info { flex: 1; min-width: 0; }
+    .feed-item-rule { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .feed-item-name { font-size: 0.75rem; color: var(--muted); }
+    .feed-item-count { font-weight: 800; font-size: 1.1rem; flex-shrink: 0; }
+
+    /* ---- STICKER OVERLAY ---- */
+    #sticker-overlay {
+      position: fixed; inset: 0; z-index: 1000; display: flex;
+      align-items: center; justify-content: center; pointer-events: none;
+      background: rgba(0,0,0,0); transition: background 0.3s;
+    }
+    #sticker-overlay.active { background: rgba(0,0,0,0.55); pointer-events: all; }
+    #sticker-overlay .sticker { --rot-start: -25deg; --rot-end: -4deg; transform-origin: center; display: none; }
+    #sticker-overlay.active .sticker { display: flex; animation: slapIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
+    #sticker-overlay.leaving .sticker { animation: slapOut 0.35s ease-in forwards; }
+
+    .sticker {
+      border-radius: 20px; padding: 20px 24px; display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+      position: relative; min-width: 220px; max-width: 85vw; text-align: center;
+    }
+    .sticker::after { content: ''; position: absolute; inset: 0; border-radius: 20px; border: 3px solid rgba(255,255,255,0.35); pointer-events: none; }
+    .sticker-emoji { font-size: 3.5rem; line-height: 1; }
+    .sticker-rule  { font-size: 1.1rem; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+    .sticker-count { font-size: 0.85rem; font-weight: 700; color: rgba(255,255,255,0.75); }
+
+    /* ---- Animations ---- */
+    @keyframes slapIn {
+      0%   { transform: scale(0.2) rotate(var(--rot-start)); opacity: 0; }
+      55%  { transform: scale(1.15) rotate(calc(var(--rot-end)*0.5)); opacity: 1; }
+      75%  { transform: scale(0.97) rotate(calc(var(--rot-end)*0.9)); }
+      90%  { transform: scale(1.03) rotate(var(--rot-end)); }
+      100% { transform: scale(1) rotate(var(--rot-end)); opacity: 1; }
+    }
+    @keyframes slapOut {
+      0%   { transform: scale(1) rotate(var(--rot-end)); opacity: 1; }
+      100% { transform: scale(0.6) rotate(calc(var(--rot-end)*2)) translateY(30px); opacity: 0; }
+    }
+    @keyframes pulseRing {
+      0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.5; }
+      70%  { box-shadow: 0 0 0 18px transparent; opacity: 0; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+    @keyframes feedSlideIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       VIEW: JOIN
+       ============================================================ -->
+  <div id="view-join">
+    <div class="demo-badge">DEMO MODE — no server needed, bots will join automatically</div>
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px 20px;">
+      <div class="hero">
+        <span class="hero-icon">🛋️</span>
+        <h1 style="background:linear-gradient(135deg,#7c6fff,#ff6fb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">DoubleDeckerCouch</h1>
+        <p style="color:var(--muted)">Movie night drinking rules — everyone plays on their phone</p>
+      </div>
+
+      <div class="form-wrapper">
+        <div class="form-section">
+          <label for="j-name">Your Name</label>
+          <input type="text" id="j-name" placeholder="e.g. MovieBuff42" maxlength="20" autocomplete="off" value="">
+        </div>
+        <div class="form-section">
+          <label for="j-code">Room Code</label>
+          <input type="text" id="j-code" class="code-input" placeholder="ABCD" maxlength="4" autocomplete="off" value="DEMO">
+        </div>
+
+        <button class="btn btn-primary" id="join-btn" onclick="doJoin()">Join Room</button>
+        <div class="divider">or</div>
+        <button class="btn btn-ghost" onclick="doCreate()">Create New Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       VIEW: SETUP
+       ============================================================ -->
+  <div class="view hidden" id="view-setup">
+    <div class="demo-badge">DEMO MODE</div>
+    <div class="topbar">
+      <span class="logo">🛋️ DDC</span>
+      <span class="topbar-room" id="setup-room-code">Room: DEMO</span>
+    </div>
+    <div class="body">
+      <div class="setup-header">
+        <h2 id="setup-greeting">Hey there!</h2>
+        <p>Pick an emoji and write your drinking rule for tonight's movie.</p>
+      </div>
+
+      <div>
+        <label>Your Emoji</label>
+        <div class="emoji-selected-preview" id="emoji-preview">
+          <div class="big-emoji" id="emoji-big">👇</div>
+          <div class="pick-hint" id="emoji-hint">Pick one below</div>
+        </div>
+        <div class="emoji-grid" id="emoji-grid"></div>
+      </div>
+
+      <div>
+        <label for="rule-input">Your Rule</label>
+        <input type="text" id="rule-input" placeholder='e.g. "Someone says literally"' maxlength="40" autocomplete="off">
+        <div class="char-count"><span id="char-count">0</span>/40</div>
+      </div>
+
+      <button class="btn btn-primary lock-btn" id="lock-btn" disabled onclick="lockIn()">Lock In Rule</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       VIEW: GAME
+       ============================================================ -->
+  <div class="view hidden" id="view-game">
+    <div class="demo-badge">DEMO MODE — bots will trigger their rules randomly</div>
+    <div class="topbar">
+      <span class="logo">🛋️ DDC</span>
+      <span class="topbar-room" id="game-room-code">Room: DEMO</span>
+    </div>
+    <div class="game-body">
+
+      <div class="rule-badge" id="rule-badge" style="border-left-color:#7c6fff">
+        <div class="rule-badge-emoji" id="badge-emoji">❓</div>
+        <div class="rule-badge-text">
+          <div class="rule-badge-name" id="badge-rule">Your rule</div>
+          <div class="rule-badge-meta" id="badge-player">You</div>
+        </div>
+        <div class="rule-badge-count" id="badge-count">0</div>
+      </div>
+
+      <div class="players-bar" id="players-bar"></div>
+
+      <div class="button-area">
+        <div class="drink-btn-wrap" id="btn-wrap" style="color:#7c6fff">
+          <button id="drink-btn" onclick="triggerRule()">
+            <span class="btn-emoji" id="btn-emoji">🍺</span>
+            <span class="btn-label">DRINK!</span>
+            <span class="btn-sub" id="btn-sub">Lock in your rule above</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="feed-panel">
+        <div class="feed-header"><h3>Live Feed</h3></div>
+        <div class="feed-list" id="feed-list">
+          <div class="feed-empty">No rules triggered yet — hit the button!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticker overlay -->
+  <div id="sticker-overlay">
+    <div class="sticker" id="active-sticker">
+      <div class="sticker-emoji" id="s-emoji">🍺</div>
+      <div class="sticker-rule"  id="s-rule">Rule</div>
+      <div class="sticker-count" id="s-count">x1 time!</div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    //  Config
+    // ============================================================
+    const EMOJIS = [
+      '🍺','🍻','🥃','🍷','🍸','🍹','🧋','🥤',
+      '🔥','💥','⚡','🌟','✨','🎉','💣','🚨',
+      '🎬','🎭','🍿','👑','💀','☠️','🤣','😂',
+      '😱','🙄','🥴','😤','🤦','👀','🎯','🐸',
+      '🤮','💩','🫡','🏆','🤌','👆','📣','🎸'
+    ];
+
+    const PLAYER_COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#F7DC6F','#DDA0DD','#F0B27A','#82E0AA'];
+
+    const BOTS = [
+      { name: 'Priya',  emoji: '😱', rule: 'Jump scare',             color: '#FF6B6B' },
+      { name: 'Marcus', emoji: '🍿', rule: 'Plot twist',             color: '#4ECDC4' },
+      { name: 'Jules',  emoji: '💀', rule: 'Someone almost dies',    color: '#F7DC6F' },
+    ];
+
+    const STICKER_ROTS = [-8,-5,-3,3,5,8,-6,6,-4,4];
+
+    // ============================================================
+    //  State
+    // ============================================================
+    let myName     = '';
+    let myColor    = '#7c6fff';
+    let myEmoji    = null;
+    let myRule     = null;
+    let myCount    = 0;
+    let selectedEmoji = null;
+    let stickerTimeout = null;
+    let botIntervals   = [];
+
+    const players = {}; // name → { name, emoji, rule, color, count }
+
+    // ============================================================
+    //  JOIN
+    // ============================================================
+    function doJoin() {
+      const name = document.getElementById('j-name').value.trim() || 'Player';
+      enterGame(name);
+    }
+    function doCreate() {
+      const name = document.getElementById('j-name').value.trim() || 'Host';
+      enterGame(name);
+    }
+    function enterGame(name) {
+      myName  = name;
+      myColor = PLAYER_COLORS[BOTS.length % PLAYER_COLORS.length];
+      players[myName] = { name: myName, emoji: null, rule: null, color: myColor, count: 0 };
+
+      // Add bots
+      BOTS.forEach(b => { players[b.name] = { ...b, rule: b.rule, count: 0 }; });
+
+      document.getElementById('setup-greeting').textContent = `Hey ${myName}!`;
+      document.getElementById('setup-room-code').textContent = 'Room: DEMO';
+      document.getElementById('game-room-code').textContent  = 'Room: DEMO';
+      buildEmojiGrid();
+      showView('setup');
+    }
+
+    // ============================================================
+    //  SETUP
+    // ============================================================
+    buildEmojiGrid();
+    function buildEmojiGrid() {
+      const grid = document.getElementById('emoji-grid');
+      grid.innerHTML = '';
+      EMOJIS.forEach(e => {
+        const btn = document.createElement('button');
+        btn.className   = 'emoji-btn';
+        btn.textContent = e;
+        btn.onclick = () => pickEmoji(e, btn);
+        grid.appendChild(btn);
+      });
+    }
+
+    function pickEmoji(emoji, btnEl) {
+      selectedEmoji = emoji;
+      document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+      btnEl.classList.add('selected');
+      document.getElementById('emoji-big').textContent  = emoji;
+      document.getElementById('emoji-hint').textContent = 'Tap to change';
+      document.getElementById('emoji-preview').classList.add('has-emoji');
+      checkLock();
+    }
+
+    document.getElementById('rule-input').addEventListener('input', function() {
+      document.getElementById('char-count').textContent = this.value.length;
+      checkLock();
+    });
+
+    function checkLock() {
+      document.getElementById('lock-btn').disabled = !(selectedEmoji && document.getElementById('rule-input').value.trim());
+    }
+
+    function lockIn() {
+      myEmoji = selectedEmoji;
+      myRule  = document.getElementById('rule-input').value.trim();
+      players[myName].emoji = myEmoji;
+      players[myName].rule  = myRule;
+
+      // Style game screen
+      document.getElementById('badge-emoji').textContent  = myEmoji;
+      document.getElementById('badge-rule').textContent   = myRule;
+      document.getElementById('badge-player').textContent = myName;
+      document.getElementById('badge-count').textContent  = '0';
+      document.getElementById('badge-count').style.color  = myColor;
+      document.getElementById('rule-badge').style.borderLeftColor = myColor;
+
+      const btn = document.getElementById('drink-btn');
+      btn.style.background = `radial-gradient(circle at 35% 35%, ${lighten(myColor,30)}, ${myColor}, ${darken(myColor,20)})`;
+      document.getElementById('btn-emoji').textContent = myEmoji;
+      document.getElementById('btn-sub').textContent   = myRule;
+      document.getElementById('btn-wrap').style.color  = myColor;
+
+      renderPlayers();
+      showView('game');
+      startBots();
+    }
+
+    // ============================================================
+    //  GAME
+    // ============================================================
+    function triggerRule() {
+      if (!myRule) return;
+      myCount++;
+      players[myName].count = myCount;
+      document.getElementById('badge-count').textContent = myCount;
+
+      const event = { name: myName, emoji: myEmoji, rule: myRule, color: myColor, count: myCount };
+      renderPlayers();
+      prependFeed(event);
+      showSticker(event, true);
+    }
+
+    // ============================================================
+    //  Bots
+    // ============================================================
+    function startBots() {
+      botIntervals.forEach(clearInterval);
+      botIntervals = [];
+
+      BOTS.forEach((bot, i) => {
+        // Randomize each bot's interval (4–12s)
+        const iv = setInterval(() => {
+          players[bot.name].count++;
+          const event = {
+            name:  bot.name,
+            emoji: bot.emoji,
+            rule:  bot.rule,
+            color: bot.color,
+            count: players[bot.name].count
+          };
+          renderPlayers();
+          prependFeed(event);
+        }, 4000 + i * 1800 + Math.random() * 3000);
+        botIntervals.push(iv);
+      });
+    }
+
+    // ============================================================
+    //  Sticker
+    // ============================================================
+    function showSticker(event, isMine) {
+      if (!isMine) return; // only show sticker for your own press
+      if ('vibrate' in navigator) navigator.vibrate([40, 20, 40]);
+
+      const overlay  = document.getElementById('sticker-overlay');
+      const sticker  = document.getElementById('active-sticker');
+      const rot      = STICKER_ROTS[Math.floor(Math.random() * STICKER_ROTS.length)];
+      const rotStart = rot + (rot >= 0 ? 15 : -15);
+
+      document.getElementById('s-emoji').textContent = event.emoji;
+      document.getElementById('s-rule').textContent  = event.rule;
+      const times = event.count === 1 ? 'time' : 'times';
+      document.getElementById('s-count').textContent = `x${event.count} ${times}!`;
+      sticker.style.background = event.color;
+      sticker.style.setProperty('--rot-start', `${rotStart}deg`);
+      sticker.style.setProperty('--rot-end',   `${rot}deg`);
+
+      overlay.classList.remove('leaving');
+      overlay.classList.add('active');
+      clearTimeout(stickerTimeout);
+      stickerTimeout = setTimeout(dismissSticker, 2500);
+      overlay.onclick = dismissSticker;
+    }
+
+    function dismissSticker() {
+      clearTimeout(stickerTimeout);
+      const overlay = document.getElementById('sticker-overlay');
+      overlay.classList.add('leaving');
+      setTimeout(() => overlay.classList.remove('active', 'leaving'), 350);
+    }
+
+    // ============================================================
+    //  Players bar
+    // ============================================================
+    function renderPlayers() {
+      const bar = document.getElementById('players-bar');
+      bar.innerHTML = '';
+      Object.values(players).forEach(p => {
+        const pill = document.createElement('div');
+        pill.className = 'player-pill';
+        const dot = document.createElement('div');
+        dot.className = 'player-pill-dot';
+        dot.style.background = p.color;
+        dot.textContent = p.emoji || p.name[0].toUpperCase();
+        const label = document.createElement('span');
+        label.style.color = p.color;
+        label.textContent = p.rule ? `${p.name} · ${p.count}` : `${p.name} · setting up…`;
+        pill.appendChild(dot);
+        pill.appendChild(label);
+        bar.appendChild(pill);
+      });
+    }
+
+    // ============================================================
+    //  Feed
+    // ============================================================
+    function prependFeed(event) {
+      const list = document.getElementById('feed-list');
+      const empty = list.querySelector('.feed-empty');
+      if (empty) empty.remove();
+
+      const el = document.createElement('div');
+      el.className = 'feed-item';
+      el.style.color       = event.color;
+      el.style.borderColor = event.color;
+      el.innerHTML = `
+        <span class="feed-item-emoji">${event.emoji}</span>
+        <span class="feed-item-info">
+          <div class="feed-item-rule">${esc(event.rule)}</div>
+          <div class="feed-item-name">${esc(event.name)}</div>
+        </span>
+        <span class="feed-item-count" style="color:${event.color}">${event.count}×</span>
+      `;
+      list.insertBefore(el, list.firstChild);
+      while (list.children.length > 40) list.lastChild.remove();
+    }
+
+    // ============================================================
+    //  View switching
+    // ============================================================
+    function showView(name) {
+      document.querySelectorAll('.view, #view-join').forEach(v => v.classList.add('hidden'));
+      document.getElementById(`view-${name}`).classList.remove('hidden');
+    }
+
+    // ============================================================
+    //  Helpers
+    // ============================================================
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function hexToRgb(hex) {
+      return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+    }
+    function rgbToHex(r,g,b) {
+      return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+    }
+    function lighten(hex, a) { const [r,g,b]=hexToRgb(hex); return rgbToHex(r+a,g+a,b+a); }
+    function darken(hex, a)  { const [r,g,b]=hexToRgb(hex); return rgbToHex(r-a,g-a,b-a); }
+  </script>
+</body>
+</html>
